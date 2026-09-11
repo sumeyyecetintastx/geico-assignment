@@ -17,6 +17,12 @@ Track progress here. Items below reflect the build order used for this framework
 - [x] Run `npm install` and `npm run install:browsers`
 - [x] Run the full suite locally and confirm all scenarios pass against the live site (13/13 passed)
 - [x] Add end-to-end purchase flow scenario (`features/purchase-flow.feature`), covering all 10 requested checkpoints — 14/14 scenarios, 62/62 steps passed
+- [x] Commit and push to GitHub (`sumeyyecetintastx/geico-assignment`, `main` branch)
+- [x] Code/security/error-handling review pass:
+  - Fixed silent `BROWSER` fallback — now validated at startup, fails fast on an invalid value (`src/config/env.ts`)
+  - Added Firefox, WebKit, and real Microsoft Edge as selectable `BROWSER` options (`src/support/hooks.ts`, `package.json` install scripts) — Firefox verified with a full live run
+  - Upgraded `@cucumber/cucumber` to v12.9.0, resolving 5 moderate `npm audit` findings (0 vulnerabilities now)
+  - Documented `BROWSER` and `HEADLESS` options in the README
 - [ ] (Optional) Wire the suite into CI (GitHub Actions) once it runs green locally
 
 ## End-to-end purchase flow — 10 requested checkpoints (all covered in `features/purchase-flow.feature`)
