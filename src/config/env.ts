@@ -29,6 +29,22 @@ function required(name: string): string {
   return value;
 }
 
+// "msedge" isn't a separate browser engine in Playwright — it's the real
+// Microsoft Edge binary run through the Chromium driver via a "channel".
+// See BasePage/hooks.ts for how BROWSER is turned into an actual launch.
+const SUPPORTED_BROWSERS = ['chromium', 'firefox', 'webkit', 'msedge'] as const;
+export type BrowserName = (typeof SUPPORTED_BROWSERS)[number];
+
+function resolveBrowser(): BrowserName {
+  const value = process.env.BROWSER ?? 'chromium';
+  if (!(SUPPORTED_BROWSERS as readonly string[]).includes(value)) {
+    throw new Error(
+      `Unsupported BROWSER "${value}" in your .env file. Valid options: ${SUPPORTED_BROWSERS.join(', ')}.`,
+    );
+  }
+  return value as BrowserName;
+}
+
 export const env = {
   BASE_URL: process.env.BASE_URL ?? 'https://www.saucedemo.com',
   PASSWORD: required('PASSWORD'),
@@ -38,7 +54,7 @@ export const env = {
   PERFORMANCE_GLITCH_USER: required('PERFORMANCE_GLITCH_USER'),
   ERROR_USER: required('ERROR_USER'),
   VISUAL_USER: required('VISUAL_USER'),
-  BROWSER: (process.env.BROWSER ?? 'chromium') as 'chromium' | 'firefox' | 'webkit',
+  BROWSER: resolveBrowser(),
   HEADLESS: (process.env.HEADLESS ?? 'true').toLowerCase() !== 'false',
   DEFAULT_TIMEOUT: Number(process.env.DEFAULT_TIMEOUT ?? 15000),
 };

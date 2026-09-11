@@ -9,3 +9,6 @@ playwright-report/
 !.env.*.example
 *.log
 .DS_Store
+
+# Local progress-tracking checklist — not part of the delivered project
+TODO.md

@@ -10,7 +10,7 @@ Testers with no coding background only ever need to open the `.feature` files in
 
 | Choice | Reason |
 |---|---|
-| **Playwright** (browser engine) | Auto-waits for elements to be actionable before every interaction, which removes most flakiness sources by design. Fast, supports Chromium/Firefox/WebKit, and has first-class TypeScript support. |
+| **Playwright** (browser engine) | Auto-waits for elements to be actionable before every interaction, which removes most flakiness sources by design. Fast, supports Chromium/Firefox/WebKit (plus real Microsoft Edge via Chromium's "channel" support), and has first-class TypeScript support. |
 | **TypeScript** | Static typing catches mistakes (wrong method name, wrong argument) at compile time, before a test ever runs — important once multiple people contribute step definitions and page objects. |
 | **Cucumber (`@cucumber/cucumber`)** | Gherkin (`Given/When/Then`) is plain English. It lets non-coding testers read, write, and extend test *scenarios* by combining existing steps, without touching TypeScript. |
 | **Page Object Model** | Isolates *how* to interact with a page (selectors, low-level actions) from *what* a test does. When saucedemo's UI changes, only one page object file needs updating — every feature file and step definition that uses it keeps working. |
@@ -141,6 +141,41 @@ npx cross-env TEST_ENV=qa npm test
 
 If `TEST_ENV` is set but the matching file doesn't exist, the framework fails fast with a clear error instead of silently falling back to the wrong environment. Every `.env.<name>` file (and its own `.env.<name>.example` template, if you add one) is already covered by `.gitignore` — the same "never commit real credentials" rule applies no matter how many environments are added.
 
+### Browser & headless configuration
+
+Both are set in `.env` (or overridden per-run — see below).
+
+**`BROWSER`** — which browser engine runs the tests:
+
+| Value | What it actually runs | Install command (one-time) |
+|---|---|---|
+| `chromium` (default) | Google Chrome's engine | `npm run install:browsers` |
+| `firefox` | Mozilla Firefox's engine | `npm run install:browsers:firefox` |
+| `webkit` | Apple's WebKit engine — approximates Safari, but isn't literally Safari | `npm run install:browsers:webkit` |
+| `msedge` | The real Microsoft Edge browser (it's Chromium-based, so Playwright drives it through the Chromium engine using a "channel" rather than a separate engine) | `npm run install:browsers:edge` |
+
+`npm run install:browsers:all` installs all four at once. Setting `BROWSER` to anything else (a typo, an unsupported name) fails immediately with a clear error listing the valid options — it will never silently fall back to Chromium.
+
+To run once against a specific browser without editing `.env`:
+
+```bash
+# macOS / Linux
+BROWSER=firefox npm test
+
+# Windows PowerShell
+$env:BROWSER="firefox"; npm test
+
+# Cross-platform
+npx cross-env BROWSER=firefox npm test
+```
+
+**`HEADLESS`** — whether a browser window is actually shown:
+
+- `true` (default) — no visible window; the browser runs in the background. Faster, and what CI should always use.
+- `false` — opens a real, visible browser window and you can watch the test click through the app step by step. Useful while writing a new scenario or debugging a failure locally; not something you'd want running unattended in CI.
+
+`npm run test:headed` is a shortcut that runs once with `HEADLESS=false` without touching `.env` (it works the same way as the `BROWSER=firefox npm test` override above, via the `cross-env` package so the syntax is identical on macOS, Linux, and Windows).
+
 ---
 
 ## 5. Running the tests
@@ -169,9 +204,11 @@ or open `reports/cucumber-report.html` directly in a browser. A machine-readable
 
 ### Verified run
 
-This suite was installed and run end-to-end against the live site on 2026-09-10: **13/13 scenarios, 48/48 steps passed** (Node 20.20.2, npm 10.8.2, installed via `nvm`). One real issue surfaced and was fixed during that run — see the note below.
+This suite was installed and run end-to-end against the live site on 2026-09-10 (Node 20.20.2, npm 10.8.2, installed via `nvm`) and has been re-verified after each change since: currently **14/14 scenarios, 62/62 steps passed** on Chromium, and the full suite was also run once against **Firefox** (`BROWSER=firefox npm test`) to confirm cross-browser support actually works end-to-end, not just that it compiles. `npm audit` currently reports **0 vulnerabilities**. A couple of real issues surfaced and were fixed along the way — see the notes below.
 
 **Known gotcha: `performance_glitch_user` and timeouts.** saucedemo.com's `performance_glitch_user` account deliberately delays ~5 seconds after login to simulate a slow backend. Two *different* default timeouts had to be raised to accommodate it: Cucumber's own per-step timeout (default 5s, set in `src/support/hooks.ts` via `setDefaultTimeout`) and Playwright's `expect()` assertion timeout (also defaults to 5s, and is *not* covered by `context.setDefaultTimeout()` — it's applied explicitly per-assertion via `BasePage.assertionTimeout`, sourced from `DEFAULT_TIMEOUT` in `.env`). If you introduce new page objects with `expect(...)` assertions, use `this.assertionTimeout` on them for the same reason.
+
+**Fixed: silent fallback on an invalid `BROWSER` value.** The original `BROWSER` handling used a TypeScript type assertion (`as 'chromium' | 'firefox' | 'webkit'`) with no runtime check, and `hooks.ts` fell back to Chromium (`browserLaunchers[env.BROWSER] ?? chromium`) for any unrecognized value — so a typo like `BROWSER=chrome` would silently run Chromium instead of failing. `src/config/env.ts` now validates `BROWSER` against the supported list at startup and throws immediately with the valid options if it doesn't match, matching the fail-fast pattern already used for required env vars and user keys.
 
 ---
 
@@ -179,7 +216,7 @@ This suite was installed and run end-to-end against the live site on 2026-09-10:
 
 - The exercise's "one password for several roles" setup refers to saucedemo.com's documented test accounts (`standard_user`, `locked_out_user`, `problem_user`, `performance_glitch_user`, `error_user`, `visual_user`), all using password `secret_sauce`. These are public, non-sensitive demo credentials; the `.env` mechanism is implemented exactly as requested (real values are still git-ignored) even though there's no actual secrecy need for this particular site.
 - "Automating a few tests" was interpreted as: solid coverage of login (the explicit starting point) plus one additional page per major flow (inventory/cart, checkout) to demonstrate that the Page Object Model and step-reuse pattern scale beyond a single page — not as a request for full regression coverage of saucedemo.com.
-- Chromium is the default target browser (fastest, most common CI choice); Firefox/WebKit are already wired up via Playwright and can be selected with the `BROWSER` variable in `.env` without any code changes.
+- Chromium is the default target browser (fastest, most common CI choice); Firefox, WebKit, and real Microsoft Edge are already wired up via Playwright and can be selected with the `BROWSER` variable in `.env` without any code changes (see §4 "Browser & headless configuration"). Firefox was also run once against the live site to confirm cross-browser support actually works, not just compiles.
 - Tests run against the public production site (`https://www.saucedemo.com`); there is no separate staging environment for this exercise.
 - CSS selectors/`data-test` attributes used in the page objects reflect saucedemo.com's structure at the time of writing. If the site's markup changes, only the page object files need updating.
 - No CI pipeline was set up, since none was requested — but the framework is structured so that adding one (e.g. GitHub Actions running `npm test` on push) is a small, self-contained addition (see §8).
@@ -199,6 +236,13 @@ This suite was installed and run end-to-end against the live site on 2026-09-10:
 - On any failed step, the `After` hook captures a full-page screenshot and attaches it directly to the Cucumber report (visible in `reports/cucumber-report.html`), so a tester can see exactly what the screen looked like at the moment of failure without re-running anything.
 - Teardown (`page.close()` / `context.close()`) happens in `After` regardless of pass/fail, so a failure never leaks an open browser process.
 - Assertion failures produce a clear diffed message (expected vs. actual) from Playwright's `expect`, surfaced directly in the Cucumber output — no custom try/catch wrapping was added, since it would only obscure Playwright's own well-formed error messages.
+- **Configuration itself is validated eagerly, before any browser launches.** `src/config/env.ts` checks every required variable and rejects an unrecognized `BROWSER` value at startup, with an actionable error naming exactly what's wrong (see `getCredentials()` in `src/config/users.ts` for the same pattern applied to user keys). The alternative — silently falling back to a default — was deliberately avoided: a typo'd `BROWSER=chrome` should fail loudly, not quietly run Chromium while someone thinks they're testing Edge.
+
+**Security.**
+- Credentials never live in source: `.env`/`.env.<environment>` are git-ignored (see §4), and `src/config/env.ts` is the single place that reads them — no page object or step definition hard-codes a username or password.
+- Failure screenshots capture only the rendered page, never environment variables or request/response headers, so attaching them to the report (which may be shared with a wider team) doesn't leak credentials.
+- Dependencies are kept vulnerability-free: `npm audit` currently reports 0 vulnerabilities (a transitive moderate-severity `uuid` issue inside Cucumber's own dependency tree was resolved by upgrading to `@cucumber/cucumber@12`).
+- All dynamic values in locators (product names, user keys) come from statically-authored `.feature` files edited by the team, not from external or user-supplied input at runtime — there's no code-injection surface comparable to a web app's.
 
 ---
 

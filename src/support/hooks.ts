@@ -13,8 +13,6 @@ import { env } from '../config/env';
 
 let browser: Browser;
 
-const browserLaunchers = { chromium, firefox, webkit };
-
 // Cucumber's own per-step timeout (default 5s) is separate from Playwright's
 // action/assertion timeouts (see DEFAULT_TIMEOUT, applied in page objects and
 // via context.setDefaultTimeout() below). saucedemo.com's
@@ -22,9 +20,22 @@ const browserLaunchers = { chromium, firefox, webkit };
 // slow backend, so the step timeout needs enough headroom for that to finish.
 setDefaultTimeout(20 * 1000);
 
+// "msedge" isn't a Playwright browser engine of its own — Microsoft Edge is
+// Chromium-based, so Playwright launches it through the Chromium driver with
+// a "channel" option instead of a dedicated launcher. env.ts already rejects
+// any BROWSER value outside chromium/firefox/webkit/msedge, so no further
+// fallback is needed here.
+function launchBrowser(): Promise<Browser> {
+  const options = { headless: env.HEADLESS };
+  if (env.BROWSER === 'msedge') {
+    return chromium.launch({ ...options, channel: 'msedge' });
+  }
+  const engines = { chromium, firefox, webkit };
+  return engines[env.BROWSER].launch(options);
+}
+
 BeforeAll(async function () {
-  const launch = browserLaunchers[env.BROWSER] ?? chromium;
-  browser = await launch.launch({ headless: env.HEADLESS });
+  browser = await launchBrowser();
 });
 
 // Every scenario gets its own isolated BrowserContext (fresh cookies/storage)
