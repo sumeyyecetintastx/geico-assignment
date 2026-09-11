@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "CucumberOpen.cucumber-official",
+    "ms-playwright.playwright",
+    "dbaeumer.vscode-eslint"
+  ]
+}

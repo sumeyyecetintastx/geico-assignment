@@ -1,0 +1,27 @@
+{
+  "name": "saucedemo-bdd-automation",
+  "version": "1.0.0",
+  "description": "Playwright + TypeScript + Cucumber (BDD) automation framework for saucedemo.com using the Page Object Model",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "install:browsers": "playwright install chromium",
+    "install:browsers:linux-ci": "playwright install --with-deps chromium",
+    "test": "cucumber-js",
+    "test:headed": "cross-env HEADLESS=false npm run test",
+    "test:tags": "cucumber-js --tags",
+    "report:open": "node -e \"const{exec}=require('child_process');exec((process.platform==='win32'?'start ':process.platform==='darwin'?'open ':'xdg-open ')+'reports/cucumber-report.html')\""
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.1.1",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.7.0",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "playwright": "^1.48.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
